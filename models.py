@@ -29,3 +29,14 @@ class Invoice(Base):
     company_id: Mapped[int] = mapped_column(Integer, ForeignKey("companies.id"))
     amount: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String)
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("companies.id"))
+    title: Mapped[str] = mapped_column(String)
+    dwscription: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="open")
+ 
