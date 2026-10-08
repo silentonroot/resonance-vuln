@@ -146,7 +146,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     name=request.name,
     email=request.email,
     role="user",
-    hashed_password=hash_password(request.pasword)
+    hashed_password=hash_password(request.password)
     )
 
     db.add(new_user)
