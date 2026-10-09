@@ -177,7 +177,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(),
     if not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    access_token = create_access_token(data={"sub": user["email"]})
+    access_token = create_access_token(data={"sub": user.email})
 
     return {
         "access_token": access_token,
@@ -256,9 +256,9 @@ def get_tickets(
 
     return [
 	{
-	    "id": tickcet.id,
+	    "id": ticket.id,
 	    "user_id": ticket.user_id,
-	    "company_id": ticket.comopoany_id,
+	    "company_id": ticket.company_id,
 	    "title": ticket.title,
 	    "description": ticket.description,
 	    "status": ticket.status,
@@ -271,7 +271,7 @@ def create_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    company = db.query(company).filter(Company.id == request.company_id).first()
+    company = db.query(Company).filter(Company.id == request.company_id).first()
 
     if not company:
         raise HTTPException(status_code=404,detail="Company not found")
@@ -299,7 +299,7 @@ def create_ticket(
             "status": ticket.status,
         },
     }
-@app.get("admin/users")
+@app.get("/admin/users")
 def get_admin_users(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
