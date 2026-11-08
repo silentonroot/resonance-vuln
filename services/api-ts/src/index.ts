@@ -8,6 +8,7 @@ import { registerSchema } from "./auth/register-schema.js";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { hashPassword, verifyPassword } from "./auth/password.js";
 import { loginSchema } from "./auth/login-schema.js";
+import { createAccessToken } from "./auth/tokens.js";
 
 type UserRow = PublicUser & RowDataPacket; 
 const app = express();
@@ -187,9 +188,13 @@ app.post("/auth/login", async (req, res) => {
     email: user.email,
     role: user.role,
     };
+    
+    const accessToken = await createAccessToken(user.id);
 
     res.json({
-      message: "Credentials verified",
+      message: "Login successful",
+      access_token: accessToken,
+      token_type: "bearer",
       user: publicUser,
     });
   } catch ( error ) {
