@@ -7,7 +7,7 @@ export async function hashPassword(
   return hash;
 }
 
-export async function VerifyPassword(
+export async function verifyPassword(
   hash: string,
   password: string 
 ): Promise<boolean> {
