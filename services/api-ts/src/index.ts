@@ -6,12 +6,17 @@ import { db } from "./db.js";
 import type { PublicUser } from "./types/user.js";
 import { registerSchema } from "./auth/register-schema.js";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
-import { hashPassword } from "./auth/password.js";
+import { hashPassword, verifyPassword } from "./auth/password.js";
+import { loginSchema } from "./auth/login-schema.js";
 
 type UserRow = PublicUser & RowDataPacket; 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);
 const VERSION: string = "0.1.0";
+
+type LoginUserRow = UserRow & {
+ hashed_password: string;
+};
 
 app.use(helmet());
 app.use(cors({origin: "http://localhost:5173"}));
@@ -138,6 +143,60 @@ app.post("/auth/register", async (req, res) => {
     error: "Unable to register user",
   });
  }
+});
+
+app.post("/auth/login", async (req, res) => {
+  const result = loginSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({
+      error: "Email or password is invalid",
+    });
+  }
+
+  const { email, password } = result.data;
+
+  try {
+    const [users] = await db.execute<LoginUserRow[]>(
+      "SELECT id, name, email, role, hashed_password FROM users WHERE email = ?",
+      [email]
+    );
+
+    const user = users[0];
+
+    if (!user || !user.hashed_password.startsWith("$argon2")) {
+      return res.status(401).json({
+        error: "Invalid email or password",
+      });
+    }
+
+    const matches = await verifyPassword(
+      user.hashed_password,
+      password
+    );
+
+    if (!matches) {
+      return res.status(401).json({
+        error: "Invalid email or password",
+      });
+    }
+
+    const publicUser: PublicUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    };
+
+    res.json({
+      message: "Credentials verified",
+      user: publicUser,
+    });
+  } catch ( error ) {
+    res.status(500).json({
+     error: "Unable to verify credentials",
+    });
+  }
 });
 
 app.listen(PORT, "127.0.0.1", () => {
