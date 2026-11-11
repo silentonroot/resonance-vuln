@@ -8,6 +8,7 @@ import { registerSchema } from "./auth/register-schema.js";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { hashPassword, verifyPassword } from "./auth/password.js";
 import { loginSchema } from "./auth/login-schema.js";
+import { createAccessToken, verifyAccessToken } from "./auth/tokens.js";
 
 type UserRow = PublicUser & RowDataPacket; 
 const app = express();
@@ -66,6 +67,48 @@ app.get("/users", async (_req, res) => {
   }
 });
 
+app.get("/users/me", async (req,res) => {
+  const authorization = req.get("Authorization");
+  const token = authorization?.match(/^Bearer +(\S+)$/i)?.[1];
+
+  if (!token) {
+    return res.status(401).set("WWW-Authenticate", "Bearer").json({
+      error: "Bearer token required",
+    });
+  }
+
+  let userId: number;
+
+  try {
+    userId = await verifyAccessToken(token);
+  } catch {
+    return res.status(401).set("WWW-Authenticate", "Bearer").json({
+      error: "Invalid or expired token",
+    });
+  }
+
+  try {
+    const [users] = await db.execute<UserRow[]>(
+    "SELECT id, name, email, role FROM users WHERE id = ?",
+    [userId]
+    ); 
+
+    const user = users[0];
+
+    if (!user) {
+      return res.status(401).set("WWW-Authenticate", "Bearer").json({
+       error: "Account unavailable",
+      });
+    }
+
+    res.json(user);
+  } catch {
+    res.status(500).json({
+      error: "Unable to fetch current user",
+    });
+  }
+});
+
 app.get("/users/:id", async (req, res) => {
   const id = Number(req.params.id);
 
@@ -98,6 +141,7 @@ app.get("/users/:id", async (req, res) => {
     });
   }
 });
+
 
 app.post("/auth/register", async (req, res) => {
   const result = registerSchema.safeParse(req.body);
@@ -187,9 +231,13 @@ app.post("/auth/login", async (req, res) => {
     email: user.email,
     role: user.role,
     };
+    
+    const accessToken = await createAccessToken(user.id);
 
     res.json({
-      message: "Credentials verified",
+      message: "Login successful",
+      access_token: accessToken,
+      token_type: "bearer",
       user: publicUser,
     });
   } catch ( error ) {
